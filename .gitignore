@@ -1,0 +1,6 @@
+.cabal-sandbox
+cabal.sandbox.config
+deps
+dist
+dist.tar.gz
+tags
