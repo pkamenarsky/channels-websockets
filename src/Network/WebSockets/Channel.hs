@@ -1,28 +1,33 @@
 module Network.WebSockets.Channel where
 
-import Control.Monad.Trans.State.Lazy
+import           Control.Concurrent.STM
+
+import           Data.Hashable
+
+import qualified STMContainers.Map      as M
+import qualified STMContainers.Multimap as MM
 
 data ChannelsState sid cid msg = ChannelsState
   { sessionQueue :: M.Map sid (TQueue msg)
-  , channelSessions :: MM.Map sid cid
+  , channelSessions :: MM.Multimap sid cid
   }
 
-type Channels m sid cid msg = StateT (ChannelsState sid cid msg) m
+registerSession :: (Eq sid, Hashable sid) => ChannelsState sid cid msg -> sid -> (TQueue msg) -> STM ()
+registerSession state sid q = M.insert q sid (sessionQueue state)
 
-registerSession :: MonadIO m => sid (TQueue msg) -> Channels m sid cid msg
-registerSession = undefined
+unregisterSession :: (Eq sid, Hashable sid) => ChannelsState sid cid msg -> sid -> STM ()
+unregisterSession state sid = M.delete sid (sessionQueue state)
 
-unregisterSession :: MonadIO m => sid (TQueue msg) -> Channels m sid cid msg
-unregisterSession = undefined
+openChannel :: (Eq sid, Hashable sid, Hashable cid, Eq cid) => ChannelsState sid cid msg -> sid -> cid -> STM ()
+openChannel state sid cid = MM.insert cid sid (channelSessions state)
 
-openChannel :: MonadIO m => sid -> cid -> Channels m sid cid msg
-openChannel = undefined
+closeChannel :: (Eq sid, Hashable sid, Hashable cid, Eq cid) => ChannelsState sid cid msg -> sid -> cid -> STM ()
+closeChannel state sid cid = MM.delete cid sid (channelSessions state)
 
-closeChannel :: MonadIO m => sid -> cid -> Channels m sid cid msg
-closeChannel = undefined
+{-
+broadcastMessage :: MonadIO m => sid -> cid -> msg -> Channels m sid cid msg
+broadcastMessage = undefined
 
-publishMessage :: MonadIO m => sid -> cid -> msg -> Channels m sid cid msg
-publishMessage = undefined
-
-publishAndPersistMessage :: MonadIO m => sid -> cid -> msg -> Channels m sid cid msg
-publishAndPersistMessage = undefined
+broadcastAndPersistMessage :: MonadIO m => sid -> cid -> msg -> Channels m sid cid msg
+broadcastAndPersistMessage = undefined
+-}
