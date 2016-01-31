@@ -20,7 +20,9 @@ library
   -- other-modules:       
   -- other-extensions:    
   build-depends:       base >=4.8 && <4.9,
+                       extra >=1.4 && <1.5,
                        hashable,
+                       list-t >=0.4 && <0.5,
                        sync-websockets ==0.1.0.0,
                        stm >=2.4 && <2.5,
                        stm-containers,
