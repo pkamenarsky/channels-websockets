@@ -59,6 +59,11 @@ leaveChannel state sid cid =
   whenJustM (M.lookup sid (sessionQueue state))
     $ \queue -> MM.delete queue cid (channelQueues state)
 
+sendToSession :: (Eq sid, Hashable sid) => ChannelsState sid cid msg -> sid -> msg -> STM ()
+sendToSession state sid msg =
+  whenJustM (M.lookup sid (sessionQueue state))
+    $ \queue -> writeTQueue (unQueue queue) msg
+
 broadcastMessage :: (Hashable cid, Eq cid) => ChannelsState sid cid msg -> sid -> cid -> msg -> STM ()
 broadcastMessage state sid cid msg = do
   L.traverse_ (flip writeTQueue msg . unQueue) $ MM.streamByKey cid (channelQueues state)
