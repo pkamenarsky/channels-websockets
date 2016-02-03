@@ -1,3 +1,5 @@
+{-# LANGUAGE RecordWildCards #-}
+
 module Network.WebSockets.Channel where
 
 import           Control.Concurrent.STM
@@ -24,6 +26,14 @@ data ChannelsState sid cid msg = ChannelsState
 
   , queueCount :: TVar Int
   }
+
+emptyState :: STM (ChannelsState sid cid msg)
+emptyState = do
+  sessionQueue <- M.new
+  channelQueues <- MM.new
+  queueCount <- newTVar 0
+
+  return ChannelsState {..}
 
 mkQueue :: ChannelsState sid cid msg -> TQueue a -> STM (Queue a)
 mkQueue state queue = do
