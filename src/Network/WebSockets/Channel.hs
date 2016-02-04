@@ -49,6 +49,9 @@ registerSession state sid queue = do
 unregisterSession :: (Eq sid, Hashable sid) => ChannelsState sid cid msg -> sid -> STM ()
 unregisterSession state sid = M.delete sid (sessionQueue state)
 
+getSessionQueue :: (Eq sid, Hashable sid) => ChannelsState sid cid msg -> sid -> STM (Maybe (TQueue msg))
+getSessionQueue state sid = fmap unQueue <$> M.lookup sid (sessionQueue state)
+
 joinChannel :: (Eq sid, Hashable sid, Hashable cid, Eq cid) => ChannelsState sid cid msg -> sid -> cid -> STM ()
 joinChannel state sid cid =
   whenJustM (M.lookup sid (sessionQueue state))
