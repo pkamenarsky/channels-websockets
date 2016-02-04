@@ -23,6 +23,7 @@ instance Eq (Queue a) where
 data ChannelsState sid cid msg = ChannelsState
   { sessionQueue :: M.Map sid (Queue msg)
   , channelQueues :: MM.Multimap cid (Queue msg)
+  , sessionChannels :: MM.Multimap sid cid
 
   , queueCount :: TVar Int
   }
@@ -31,6 +32,7 @@ emptyState :: STM (ChannelsState sid cid msg)
 emptyState = do
   sessionQueue <- M.new
   channelQueues <- MM.new
+  sessionChannels <- MM.new
   queueCount <- newTVar 0
 
   return ChannelsState {..}
@@ -44,23 +46,27 @@ mkQueue state queue = do
 registerSession :: (Eq sid, Hashable sid) => ChannelsState sid cid msg -> sid -> (TQueue msg) -> STM ()
 registerSession state sid queue = do
   queue' <- mkQueue state queue
-  do M.insert queue' sid (sessionQueue state)
+  M.insert queue' sid (sessionQueue state)
 
-unregisterSession :: (Eq sid, Hashable sid) => ChannelsState sid cid msg -> sid -> STM ()
-unregisterSession state sid = M.delete sid (sessionQueue state)
+unregisterSession :: (Eq sid, Hashable sid, Eq cid, Hashable cid) => ChannelsState sid cid msg -> sid -> STM ()
+unregisterSession state sid = do
+  L.traverse_ (leaveChannel state sid) $ MM.streamByKey sid (sessionChannels state)
+  M.delete sid (sessionQueue state)
 
 getSessionQueue :: (Eq sid, Hashable sid) => ChannelsState sid cid msg -> sid -> STM (Maybe (TQueue msg))
 getSessionQueue state sid = fmap unQueue <$> M.lookup sid (sessionQueue state)
 
-joinChannel :: (Eq sid, Hashable sid, Hashable cid, Eq cid) => ChannelsState sid cid msg -> sid -> cid -> STM ()
-joinChannel state sid cid =
-  whenJustM (M.lookup sid (sessionQueue state))
-    $ \queue -> MM.insert queue cid (channelQueues state)
+joinChannel :: (Eq sid, Hashable sid, Eq cid, Hashable cid) => ChannelsState sid cid msg -> sid -> cid -> STM ()
+joinChannel state sid cid = do
+  MM.insert cid sid (sessionChannels state)
+  whenJustM (M.lookup sid (sessionQueue state)) $ \queue ->
+    MM.insert queue cid (channelQueues state)
 
-leaveChannel :: (Eq sid, Hashable sid, Hashable cid, Eq cid) => ChannelsState sid cid msg -> sid -> cid -> STM ()
-leaveChannel state sid cid =
-  whenJustM (M.lookup sid (sessionQueue state))
-    $ \queue -> MM.delete queue cid (channelQueues state)
+leaveChannel :: (Eq sid, Hashable sid, Eq cid, Hashable cid) => ChannelsState sid cid msg -> sid -> cid -> STM ()
+leaveChannel state sid cid = do
+  MM.delete cid sid (sessionChannels state)
+  whenJustM (M.lookup sid (sessionQueue state)) $ \queue ->
+    MM.delete queue cid (channelQueues state)
 
 sendToSession :: (Eq sid, Hashable sid) => ChannelsState sid cid msg -> sid -> msg -> STM ()
 sendToSession state sid msg =
