@@ -5,6 +5,8 @@ module Network.WebSockets.Channel where
 import           Control.Concurrent.STM
 import           Control.Monad.Extra
 
+import           Data.Maybe            (isJust)
+
 import qualified ListT                  as L
 import           Data.Hashable
 
@@ -52,6 +54,10 @@ unregisterSession :: (Eq sid, Hashable sid, Eq cid, Hashable cid) => ChannelsSta
 unregisterSession state sid = do
   L.traverse_ (leaveChannel state sid) $ MM.streamByKey sid (sessionChannels state)
   M.delete sid (sessionQueue state)
+
+isSessionRegistered :: (Eq sid, Hashable sid, Eq cid, Hashable cid) => ChannelsState sid cid msg -> sid -> STM Bool
+isSessionRegistered state sid =
+  isJust <$> M.lookup sid (sessionQueue state)
 
 getSessionQueue :: (Eq sid, Hashable sid) => ChannelsState sid cid msg -> sid -> STM (Maybe (TQueue msg))
 getSessionQueue state sid = fmap unQueue <$> M.lookup sid (sessionQueue state)
