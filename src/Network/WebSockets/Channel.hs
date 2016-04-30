@@ -5,6 +5,7 @@ module Network.WebSockets.Channel where
 import           Control.Concurrent.STM
 import           Control.Monad.Extra
 
+import           Data.Aeson
 import           Data.Maybe            (isJust)
 
 import qualified ListT                  as L
@@ -29,6 +30,19 @@ data ChannelsState sid cid msg = ChannelsState
 
   , queueCount :: TVar Int
   }
+
+extractState :: (ToJSON sid, ToJSON cid) => ChannelsState sid cid msg -> STM Value
+extractState state = do
+  sq <- L.toList $ M.stream $ sessionQueue state
+  cq <- L.toList $ MM.stream $ channelQueues state
+  sc <- L.toList $ MM.stream $ sessionChannels state
+  count <- readTVar $ queueCount state
+  return $ object
+    [ "session_queue" .= map fst sq
+    , "channel_queues" .= map fst cq
+    , "session_channels" .= sc
+    , "queue_count" .= count
+    ]
 
 emptyState :: STM (ChannelsState sid cid msg)
 emptyState = do
