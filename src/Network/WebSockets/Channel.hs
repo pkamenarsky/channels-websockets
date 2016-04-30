@@ -67,7 +67,8 @@ registerSession state sid queue = do
 
 unregisterSession :: (Eq sid, Hashable sid, Eq cid, Hashable cid) => ChannelsState sid cid msg -> sid -> STM ()
 unregisterSession state sid = do
-  L.traverse_ (leaveChannel state sid) $ MM.streamByKey sid (sessionChannels state)
+  cids <- L.toList $ MM.streamByKey sid (sessionChannels state)
+  forM_ cids (leaveChannel state sid)
   M.delete sid (sessionQueue state)
 
 isSessionRegistered :: (Eq sid, Hashable sid, Eq cid, Hashable cid) => ChannelsState sid cid msg -> sid -> STM Bool
